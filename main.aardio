@@ -1,0 +1,111 @@
+//系统热键
+import win.ui;
+import win.util.tray;
+import key;
+import key.ime;
+/*DSG{{*/
+var mainForm = win.form(text="互换4和SHIFT+4";right=346;bottom=96;parent=...)
+mainForm.add(
+ime={cls="checkbox";text='受输入法影响选择输入$或\uFFE5';left=33;top=21;right=231;bottom=47;z=4};
+停止={cls="button";text="停止";left=249;top=55;right=327;bottom=91;z=2};
+开始={cls="button";text="开始";left=249;top=11;right=327;bottom=47;z=1};
+状态={cls="static";text="当前状态：关闭";left=33;top=62;right=159;bottom=90;transparent=1;z=3}
+)
+/*}}*/
+
+var hkId1;
+var hkId2;
+var 清理热键 = function(){
+	//删除之前注册的热键,hkId如果是null空值，此函数可忽略不做任何操
+	mainForm.unreghotkey(hkId1);
+	mainForm.unreghotkey(hkId2);
+	
+}
+var 创建托盘图标 = function(){
+	mainForm.tray = win.util.tray(mainForm);
+	mainForm.tray.tip = "互换4和SHIFT+4" //设置鼠标提示 
+}
+
+
+mainForm.开始.oncommand = function(id,event){
+	
+	清理热键();
+	//重新注册4
+	hkId1 = mainForm.reghotkey(
+	
+		function(id,mod,vk){
+			temp,s = key.ime.state();
+			if(mainForm.ime.checked && s==3){
+				key.sendString("￥");
+			}else{
+				key.sendString("$");
+			}
+		}
+		,0,'4'#
+	);
+	//重新注册SHIFT+4
+	hkId2 = mainForm.reghotkey(
+	
+		function(id,mod,vk){
+			key.sendString("4");
+		}
+		,4/*_MOD_SHIFT*/,'4'#
+	);
+	mainForm.状态.color = 32768;
+	mainForm.状态.text = "当前状态：开启";
+	
+ 
+}
+
+mainForm.停止.oncommand = function(id,event){
+	清理热键();
+	mainForm.状态.color = 0;
+	mainForm.状态.text = "当前状态：关闭";
+	
+}
+
+//最小化
+mainForm.onMinimize = function(lParam){
+	mainForm.tray = win.util.tray(mainForm);
+	mainForm.show(false); //隐藏窗口
+	return true;//阻击默认消息传递,取消最小化过程
+}
+
+//托盘图标菜单
+mainForm.onTrayMessage = {
+	[0x205/*_WM_RBUTTONUP*/  ] = function(wParam){ 
+	    //弹出托盘菜单以前,一定要前置主窗口中,避免不点击菜单不会消失，父窗口隐藏也要这样做
+	    win.setForeground(mainForm.hwnd);
+	     
+		/*
+		下面创建托盘弹出菜单。
+		如果程序要开机启动到托盘，最好在这里创建菜单，在用户点击前不要创建菜单，
+		避免系统启动时 DPI 缩放前创建的菜单字体偏小（出现这情况的机率很小）。
+		如果不想重复创建菜单最好写到一个库里，然后在这里 import 即可避免上述问题。
+		*/
+		import win.ui.menu;
+		
+		mainForm.popmenu = win.ui.popmenu(mainForm);//创建弹出菜单
+		mainForm.popmenu.add('&open',function(id){
+			//在下面输入菜单响应代码
+			mainForm.show(true);
+			
+		});
+		mainForm.popmenu.add();//分隔线
+		mainForm.popmenu.add('&exit',function(id){ mainForm.close() })	    
+	    		
+	    mainForm.popmenu.popup();
+	    mainForm.popmenu.close();
+	};
+}
+//退出清理热键
+mainForm.onClose = function(hwnd,message,wParam,lParam){
+    清理热键();
+    mainForm.show(false);
+    win.delay(2000);
+}
+
+mainForm.enableDpiScaling();
+mainForm.show();
+创建托盘图标();
+win.loopMessage();
